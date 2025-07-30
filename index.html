@@ -1,0 +1,327 @@
+<!-- 
+USER OPEN KARTA HAI WEBSITE
+    
+Dekhta hai ek clean screen:
+Name input field
+Industry dropdown (Tech, Movies, Sports, etc.)
+Difficulty level
+Start Game button
+
+    ↓ (User fills & clicks START GAME)
+
+startGame() function activate hota hai:
+    → Name, industry, aur difficulty capture karo
+    → Word list select karo based on industry + difficulty
+    → Ek random word choose karo (e.g., "APPLE")
+    → Setup:
+        - Hidden word display → "_ _ _ _ _"
+        - Lives = 6
+        - Hints = 2
+        - Empty guessed letters list
+        - Timer start karo (based on difficulty)
+        - Background music start ho jaata hai 🎵
+
+    ↓
+Game area visible ho jaata hai
+    ↓
+Player types a letter and clicks ✅ Guess
+    ↓
+ Logic:
+    → Letter check karo:
+        ✔️ If letter already guessed:
+            Show message: "Already guessed bro 😅"
+        ✔️ If letter is in the word:
+            - Reveal all positions of that letter
+            - Add to guessedLetters
+            - Check if word is complete → 🎉 Win!
+                - Show animation
+                - Stop timer
+                - Play winSound 🔊
+        If letter is NOT in the word:
+            - Reduce lives
+            - Update guessedLetters
+            - If lives == 0 → 💀 Game Over!
+                - Show losing animation
+                - Play loseSound 🔊
+                - Stop timer
+
+    ↓
+ Use Hint:
+    - Random unrevealed letter find karo
+    - Reveal that letter in word
+    - Reduce hint count
+    - Same win check logic again apply karo
+
+    ↓
+ Timer runs in background
+    → If time gets over:
+        - Game over
+        - Play loseSound
+
+    ↓
+Game End:
+    - Win or lose message dikh jaata hai
+    - Optionally: reload page to play again
+
+
+-->
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔠 Hangman Game 2.0 by Sayeed</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #f0f6fc;
+            text-align: center;
+            padding: 30px;
+            overflow-x: hidden;
+        }
+        h1, h2 {
+            color: #58a6ff;
+        }
+        .logo {
+            width: 130px;
+            filter: drop-shadow(2px 4px 6px black);
+        }
+        .game-board {
+            font-size: 2.8em;
+            letter-spacing: 14px;
+            margin: 30px 0;
+        }
+        .status, .timer, .input-area {
+            margin-top: 25px;
+        }
+        input[type="text"], select {
+            font-size: 1em;
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 200px;
+            margin: 5px 0;
+        }
+        button {
+            padding: 12px 30px;
+            font-size: 1em;
+            background: linear-gradient(90deg, #28a745, #218838);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            margin: 8px;
+            transition: background 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(90deg, #218838, #1e7e34);
+        }
+        .hidden {
+            display: none;
+        }
+        .card {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 25px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .footer {
+            margin-top: 60px;
+            font-size: 0.9em;
+            color: #8b949e;
+        }
+        .animation {
+            font-size: 5em;
+            animation: flash 0.6s alternate infinite;
+        }
+        @keyframes flash {
+            from { opacity: 1; }
+            to { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <img src="https://img.icons8.com/ios-filled/200/hangman.png" alt="Hangman Logo" class="logo">
+    <h1>🔠 Hangman Game 2.0</h1>
+
+    <div class="card">
+        <label for="playerName">🧑‍💻 What's your name?</label><br>
+        <input type="text" id="playerName" placeholder="e.g. Sayeed"><br><br>
+
+        <label for="industry">🏭 Pick an Industry:</label><br>
+        <select id="industry">
+            <option value="tech">Technology</option>
+            <option value="finance">Finance</option>
+            <option value="sports">Sports</option>
+            <option value="movies">Movies</option>
+        </select><br><br>
+
+        <label for="difficulty">🎚️ Difficulty Level:</label><br>
+        <select id="difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+        </select><br><br>
+
+        <button onclick="startGame()">🚀 Start Game</button>
+    </div>
+
+    <div id="gameArea" class="card hidden">
+        <h2 id="welcomeMsg"></h2>
+        <p class="timer">⏱️ Time Left: <span id="timeLeft"></span>s</p>
+        <div class="game-board" id="wordDisplay">_ _ _ _</div>
+        <div class="status">
+            <p class="lives">❤️ Lives Left: <span id="lives"></span></p>
+            <p class="hints">💡 Hints Left: <span id="hints"></span></p>
+            <p class="guesses">🔠 Letters Guessed: <span id="guessedLetters"></span></p>
+        </div>
+        <div class="input-area">
+            <input type="text" id="letterInput" maxlength="1" placeholder="Enter a letter">
+            <button onclick="makeGuess()">✅ Guess</button>
+            <button onclick="useHint()">💡 Hint</button>
+        </div>
+        <p id="message"></p>
+    </div>
+
+    <div id="animationContainer" class="hidden animation"></div>
+
+    <div class="footer">🎓 Made with ❤️ by Sayeed — HTML, CSS & a dash of JavaScript magic</div>
+
+    <audio id="bgMusic" loop>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="winSound">
+        <source src="https://www.fesliyanstudios.com/play-mp3/387" type="audio/mpeg">
+    </audio>
+    <audio id="loseSound">
+        <source src="https://www.fesliyanstudios.com/play-mp3/7651" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const wordDisplay = document.getElementById("wordDisplay");
+        const guessedLettersSpan = document.getElementById("guessedLetters");
+        const livesSpan = document.getElementById("lives");
+        const hintsSpan = document.getElementById("hints");
+        const message = document.getElementById("message");
+        const timeLeftSpan = document.getElementById("timeLeft");
+        const welcomeMsg = document.getElementById("welcomeMsg");
+
+        const bgMusic = document.getElementById("bgMusic");
+        const winSound = document.getElementById("winSound");
+        const loseSound = document.getElementById("loseSound");
+
+        let word = "";
+        let displayWord = [];
+        let guessedLetters = [];
+        let lives = 6;
+        let hints = 3;
+        let timer;
+        let timeLeft = 60;
+
+        const wordPool = {
+            tech: ["coding", "python", "javascript", "binary", "algorithm"],
+            finance: ["budget", "stocks", "revenue", "profit", "equity"],
+            sports: ["cricket", "tennis", "olympics", "marathon", "hockey"],
+            movies: ["cinema", "actor", "thriller", "director", "bollywood"]
+        };
+
+        function startGame() {
+            document.querySelector(".card").classList.add("hidden");
+            document.getElementById("gameArea").classList.remove("hidden");
+
+            const playerName = document.getElementById("playerName").value;
+            const selectedIndustry = document.getElementById("industry").value;
+
+            welcomeMsg.textContent = `🎉 Welcome, ${playerName}! Let's play.`;
+
+            const selectedWords = wordPool[selectedIndustry];
+            word = selectedWords[Math.floor(Math.random() * selectedWords.length)].toLowerCase();
+
+            displayWord = Array(word.length).fill("_");
+            guessedLetters = [];
+            lives = 6;
+            hints = 3;
+            timeLeft = 60;
+
+            updateDisplay();
+            bgMusic.play();
+
+            timer = setInterval(() => {
+                timeLeft--;
+                timeLeftSpan.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    endGame(false);
+                }
+            }, 1000);
+        }
+
+        function updateDisplay() {
+            wordDisplay.textContent = displayWord.join(" ");
+            guessedLettersSpan.textContent = guessedLetters.join(", ");
+            livesSpan.textContent = lives;
+            hintsSpan.textContent = hints;
+        }
+
+        function makeGuess() {
+            const input = document.getElementById("letterInput");
+            const guess = input.value.toLowerCase();
+            input.value = "";
+            if (!guess || guessedLetters.includes(guess) || guess.length !== 1) return;
+
+            guessedLetters.push(guess);
+
+            if (word.includes(guess)) {
+                for (let i = 0; i < word.length; i++) {
+                    if (word[i] === guess) displayWord[i] = guess;
+                }
+                if (!displayWord.includes("_")) {
+                    endGame(true);
+                }
+            } else {
+                lives--;
+                if (lives <= 0) {
+                    endGame(false);
+                }
+            }
+            updateDisplay();
+        }
+
+        function useHint() {
+            if (hints <= 0) return;
+            let unrevealed = [];
+            for (let i = 0; i < word.length; i++) {
+                if (displayWord[i] === "_") {
+                    unrevealed.push(i);
+                }
+            }
+            if (unrevealed.length > 0) {
+                const randIndex = unrevealed[Math.floor(Math.random() * unrevealed.length)];
+                const letter = word[randIndex];
+                for (let i = 0; i < word.length; i++) {
+                    if (word[i] === letter) displayWord[i] = letter;
+                }
+                guessedLetters.push(letter);
+                hints--;
+                if (!displayWord.includes("_")) {
+                    endGame(true);
+                }
+                updateDisplay();
+            }
+        }
+
+        function endGame(won) {
+            clearInterval(timer);
+            document.getElementById("letterInput").disabled = true;
+            message.textContent = won ? "🎉 You Win!" : `😞 You Lose! The word was '${word}'`;
+            bgMusic.pause();
+            won ? winSound.play() : loseSound.play();
+        }
+    </script>
+</body>
+</html>
